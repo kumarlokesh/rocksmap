@@ -1,0 +1,50 @@
+# Build artifacts
+/target
+**/*.rs.bk
+**/*.rs.bk.*
+
+# Debug information
+*.pdb
+*.dSYM/
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local development files
+*.db/
+*.db-journal
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Cargo build files
+Cargo.lock
+
+# Benchmark data
+**/benches/criterion/
+
+# Test artifacts
+**/test.db/
+**/test-*.db/
+
+# RocksMap specific
+rocksmap.db/
+*.sst
+*.ldb
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

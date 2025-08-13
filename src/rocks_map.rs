@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn test_iterator() {
         let temp_dir = TempDir::new().unwrap();
-        let mut db = RocksMap::<u64, TestUser>::open(temp_dir.path()).unwrap();
+        let db = RocksMap::<u64, TestUser>::open(temp_dir.path()).unwrap();
 
         for i in 1..=5 {
             let user = TestUser {
@@ -560,7 +560,7 @@ mod tests {
     #[test]
     fn test_range_query() {
         let temp_dir = TempDir::new().unwrap();
-        let mut db = RocksMap::<u64, TestUser>::open(temp_dir.path()).unwrap();
+        let db = RocksMap::<u64, TestUser>::open(temp_dir.path()).unwrap();
 
         for i in 1..=10 {
             let user = TestUser {
@@ -571,13 +571,13 @@ mod tests {
             db.put(i, &user).unwrap();
         }
 
-        let mut count = 0;
+        let mut _count = 0;
         let mut ids = Vec::new();
         for result in db.range(&3, &7).unwrap() {
             let (key, value) = result.unwrap();
             assert_eq!(key, value.id);
             ids.push(key);
-            count += 1;
+            _count += 1;
         }
 
         assert!(ids.contains(&3));

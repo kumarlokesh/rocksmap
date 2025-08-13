@@ -340,7 +340,7 @@ fn benchmark_database(db_path: &PathBuf, operations: usize, op_type: &str) -> Re
     println!();
 
     let start = Instant::now();
-    let mut db = RocksMap::<String, String>::open(db_path)?;
+    let db = RocksMap::<String, String>::open(db_path)?;
 
     let mut read_times = Vec::new();
     let mut write_times = Vec::new();

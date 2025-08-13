@@ -1,10 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use rocksmap::RocksMap;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::Instant;
 
 mod commands;
 use commands::*;
@@ -222,7 +218,7 @@ enum DiagCommands {
         #[arg(short, long, default_value = "1000")]
         operations: usize,
         /// Operation type (read, write, mixed)
-        #[arg(short, long, default_value = "mixed")]
+        #[arg(short = 't', long, default_value = "mixed")]
         op_type: String,
     },
 }

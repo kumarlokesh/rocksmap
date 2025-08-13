@@ -90,7 +90,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::RocksMap;
     use serde::{Deserialize, Serialize};
     use tempfile::TempDir;

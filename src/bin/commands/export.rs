@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
 use rocksmap::RocksMap;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 
 use crate::{ExportCommands, OutputFormat};

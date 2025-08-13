@@ -85,8 +85,8 @@ rocksmap-cli admin compact
 rocksmap-cli admin backup /path/to/backup
 
 # Data import/export
-rocksmap-cli export --format json > data.json
-rocksmap-cli import --format csv data.csv
+rocksmap-cli export json data.json
+rocksmap-cli import csv data.csv
 
 # Diagnostics and analysis
 rocksmap-cli diag analyze    # Key distribution analysis

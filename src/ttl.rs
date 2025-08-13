@@ -58,9 +58,8 @@ pub mod ttl_utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rocksdb::DB;
+
     use std::time::Duration;
-    use tempfile::TempDir;
 
     #[test]
     fn test_ttl_expiration() {

@@ -6,13 +6,13 @@ use std::path::Path;
 use crate::OutputFormat;
 
 /// Interactive shell command
-pub fn shell_command(db_path: &Path, format: &OutputFormat) -> Result<()> {
+pub fn shell_command(db_path: &Path, _format: &OutputFormat) -> Result<()> {
     println!("RocksMap Interactive Shell");
     println!("=========================");
     println!("Database: {:?}", db_path);
     println!("Type 'help' for available commands, 'exit' to quit.\n");
 
-    let mut db = RocksMap::<String, String>::open(db_path).context("Failed to open database")?;
+    let db = RocksMap::<String, String>::open(db_path).context("Failed to open database")?;
 
     loop {
         print!("rocksmap> ");

@@ -266,7 +266,6 @@ fn scan_keyspace(
 
     let db = RocksMap::<String, String>::open(db_path)?;
 
-    // We'll implement simple pattern matching without regex dependency for now
     let mut matched_keys = 0;
     let mut total_keys = 0;
     let mut key_size_buckets = HashMap::new();

@@ -34,9 +34,37 @@ criterion = { version = "0.5", features = ["html_reports"] }
 name = "rocksmap-cli"
 path = "src/bin/cli.rs"
 
+# Unit benchmarks - quick feedback during development
 [[bench]]
-name = "simple_bench"
+name = "basic_ops"
 harness = false
+path = "benches/unit/basic_ops.rs"
+
+[[bench]]
+name = "batch_ops"
+harness = false
+path = "benches/unit/batch_ops.rs"
+
+[[bench]]
+name = "iterators"
+harness = false
+path = "benches/unit/iterators.rs"
+
+# Integration benchmarks - comprehensive performance testing
+[[bench]]
+name = "read_heavy"
+harness = false
+path = "benches/integration/read_heavy.rs"
+
+[[bench]]
+name = "write_heavy"
+harness = false
+path = "benches/integration/write_heavy.rs"
+
+[[bench]]
+name = "mixed_workload"
+harness = false
+path = "benches/integration/mixed_workload.rs"
 
 [features]
 default = []

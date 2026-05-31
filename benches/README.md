@@ -1,6 +1,8 @@
-# RocksMap Benchmarks
+# rocksmap Benchmarks
 
-This directory contains comprehensive benchmarks for the RocksMap library, organized into two categories for different testing needs.
+Criterion-based benchmarks for rocksmap, organized into two categories. These measure the
+performance of the operations as currently implemented; areas still being reworked (key
+ordering, prefix/range scans) may change these numbers and benchmarks.
 
 ## Structure
 
@@ -20,25 +22,23 @@ benches/
 
 ## Benchmark Categories
 
+Dataset sizes come from the `config` constants in [lib.rs](lib.rs):
+`UNIT_TEST_SIZE = 1_000`, `INTEGRATION_TEST_SIZE = 10_000`, `STRESS_TEST_SIZE = 100_000`.
+
 ### Unit Benchmarks (`unit/`)
 
-- **Purpose**: Quick feedback during development
-- **Dataset Size**: Small (1K-10K items)
-- **Execution Time**: Fast (< 30 seconds)
-- **Use Cases**:
-  - Local development
-  - CI/CD pipelines
-  - Quick regression testing
+- **Purpose**: Quick feedback during development.
+- **Dataset Size**: Small, on the order of `UNIT_TEST_SIZE` (1K) items.
+- **Use Cases**: local development and quick regression checks.
 
 ### Integration Benchmarks (`integration/`)
 
-- **Purpose**: Comprehensive performance validation
-- **Dataset Size**: Large (10K-100K items)
-- **Execution Time**: Longer (1-5 minutes)
-- **Use Cases**:
-  - Pre-release validation
-  - Performance regression testing
-  - Load testing
+- **Purpose**: Performance validation on larger, more realistic workloads.
+- **Dataset Size**: Larger, on the order of `INTEGRATION_TEST_SIZE` (10K) to
+  `STRESS_TEST_SIZE` (100K) items.
+- **Use Cases**: pre-release validation and load-pattern testing.
+
+Execution time depends on your machine; run them locally to see actual durations.
 
 ## Running Benchmarks
 
@@ -107,7 +107,8 @@ cargo bench
 #### `write_heavy.rs`
 
 - **sequential_writes_10k**: Sequential write patterns
-- **large_batch_1000_items**: Large batch operations
+- **large_batch_1000_items**: Large batch operations (1K items)
+- **large_batch_5000_items**: Large batch operations (5K items)
 - **concurrent_writes_4_threads**: Multi-threaded write performance
 - **update_heavy_1000_updates**: Update-intensive workloads
 - **mixed_write_operations**: Mixed insert/update/delete operations
@@ -129,21 +130,19 @@ When running benchmarks, Criterion will automatically:
 - Compare against previous runs
 - Generate detailed HTML reports (in `target/criterion/`)
 
-## CI/CD Integration
+## CI integration (not yet configured)
 
-### For Pull Requests (Fast)
+There is currently no CI in this repository. The snippets below are illustrative examples of
+how these benchmarks could be wired into a workflow if one is added later:
 
 ```yaml
-- name: Run Unit Benchmarks
+# Example only — no workflow is configured yet.
+- name: Run unit benchmarks
   run: |
     cargo bench --bench basic_ops -- --quick
     cargo bench --bench batch_ops -- --quick
-```
 
-### For Releases (Comprehensive)
-
-```yaml
-- name: Run Full Benchmark Suite
+- name: Run full benchmark suite
   run: cargo bench
 ```
 

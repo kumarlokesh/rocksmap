@@ -1,38 +1,59 @@
-# RocksMap
+# rocksmap
 
 [![Crates.io](https://img.shields.io/crates/v/rocksmap.svg)](https://crates.io/crates/rocksmap)
 [![Documentation](https://docs.rs/rocksmap/badge.svg)](https://docs.rs/rocksmap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A high-level, type-safe abstraction over RocksDB in Rust, offering ergonomic map-like APIs with zero unsafe code and clean serialization defaults.
+A typed, ergonomic map-like layer over [RocksDB](https://rocksdb.org/) in Rust. rocksmap lets
+you store and query strongly-typed keys and values with serde-based serialization, instead of
+hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
-## ✨ Features
+> **Project status — early, pre-1.0 (0.1.x).** The core typed map, column families, and atomic
+> batch writes work and are tested. Several advanced areas — key ordering for range/prefix
+> scans, TTL, and secondary indexes — are still being reworked before 1.0. Treat anything not
+> listed under **Available now** as in progress and subject to change.
 
-### Core Features
+## Available now
 
-- **Type-safe**: Full generics support with compile-time type checking
-- **Zero unsafe code**: Built entirely on safe Rust abstractions
-- **Ergonomic API**: Map-like interface (`get`, `put`, `delete`, `iter`)
-- **Serialization**: Pluggable codec system with bincode/serde defaults
-- **Column families**: Namespaced data organization
-- **Comprehensive error handling**: Rich error types with context
+- **Typed map API** — `open`, `get`, `put`, `delete`, `iter`, generic over
+  `K, V: Serialize + DeserializeOwned + Clone`.
+- **Column families** — named, isolated keyspaces within one database.
+- **Atomic batch writes** — multiple puts/deletes committed together via RocksDB `WriteBatch`.
+- **Pluggable codecs** — `KeyCodec` / `ValueCodec` traits, with bincode as the default.
+- **Safe Rust surface** — rocksmap's own crate contains no `unsafe` code (the underlying
+  `rocksdb` bindings are FFI and are not counted here).
 
-### Advanced Features Overview
+## In progress / planned
 
-- **Batch operations**: Atomic multi-key transactions
-- **TTL support**: Automatic key expiration with compaction
-- **Range queries**: Efficient key range and prefix scanning
-- **Secondary indexes**: Optional indexing layer for complex queries
-- **CLI tooling**: Full-featured command-line interface
-- **Diagnostics**: Database analysis, integrity checks, and benchmarking
+- **Order-preserving key encoding** so iteration and ranges follow logical key order. Until
+  this lands, `range` only orders correctly for keys whose byte encoding already matches their
+  logical order, and `prefix_scan` is limited to string-like keys.
+- **Correct, seek-based range and prefix scans.**
+- **TTL / expiration.** *Not currently functional;* the existing TTL hooks are placeholders
+  and do not expire keys.
+- **Atomic, consistent secondary indexes.** The current index helper is experimental and does
+  not guarantee atomicity across the data and index on updates.
+
+## Installation
+
+Add rocksmap to your `Cargo.toml` (also add `serde` with the `derive` feature for your types):
+
+```toml
+[dependencies]
+rocksmap = "0.1"
+serde = { version = "1", features = ["derive"] }
+```
+
+Note that the `rocksdb` dependency compiles RocksDB's C++ engine, so a C++ toolchain is
+required to build.
 
 ## Usage
 
 ```rust
 use rocksmap::{RocksMap, Error};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 struct User {
     id: u64,
     name: String,
@@ -40,116 +61,87 @@ struct User {
 }
 
 fn main() -> Result<(), Error> {
-    let temp_dir = tempfile::tempdir()?;
-    let path = temp_dir.path();
+    let db = RocksMap::<u64, User>::open("./users.db")?;
 
-    let mut user_db = RocksMap::<u64, User>::open(path)?;
+    let alice = User { id: 1, name: "Alice".to_string(), active: true };
+    db.put(alice.id, &alice)?; // `put` takes the key by value
 
-    let user = User {
-        id: 1,
-        name: String::from("Alice"),
-        active: true,
-    };
-    user_db.put(user.id, &user)?;
-
-    if let Some(retrieved_user) = user_db.get(&1)? {
-        println!("Found user: {:?}", retrieved_user);
+    if let Some(found) = db.get(&1)? {
+        // `get` and `delete` take the key by reference
+        println!("found: {found:?}");
     }
 
-    user_db.delete(&1)?;
+    for entry in db.iter()? {
+        let (id, user) = entry?;
+        println!("{id} -> {user:?}");
+    }
 
-    let mut user_settings = user_db.column_family("settings")?;
-    user_settings.put(1, &"dark-mode")?;
-
+    db.delete(&1)?;
     Ok(())
 }
 ```
 
-## 🛠️ CLI Tool
+### Column families
 
-RocksMap includes a powerful CLI for database management and diagnostics:
+A column family is a named keyspace that shares the same key/value types as its parent map
+(`User` is the type defined in the example above):
+
+```rust
+let mut db = RocksMap::<u64, User>::open("./app.db")?;
+
+let admins = db.column_family("admins")?;
+let alice = User { id: 1, name: "Alice".to_string(), active: true };
+admins.put(&1, &alice)?; // on a column family, `put` takes the key by reference
+let _ = admins.get(&1)?;
+```
+
+### Atomic batch writes
+
+```rust
+let db = RocksMap::<u64, User>::open("./app.db")?;
+let alice = User { id: 1, name: "Alice".to_string(), active: true };
+let bob = User { id: 2, name: "Bob".to_string(), active: false };
+
+let mut batch = db.batch();
+batch.put(&1, &alice)?;
+batch.put(&2, &bob)?;
+batch.delete(&3)?;
+batch.commit()?; // all operations apply atomically, or none do
+```
+
+## CLI
+
+rocksmap ships a command-line tool, `rocksmap-cli`, as a binary target of this crate (it is
+not a separate crate). It operates on a database of UTF-8 string keys and string values. It is
+under active development.
+
+Build and run it from source:
 
 ```bash
-# Install the CLI
-cargo install rocksmap-cli
+cargo build --release --bin rocksmap-cli
 
-# Basic operations
-rocksmap-cli put mykey "hello world"
-rocksmap-cli get mykey
-rocksmap-cli list
-rocksmap-cli delete mykey
+./target/release/rocksmap-cli put mykey "hello world"
+./target/release/rocksmap-cli get mykey
+./target/release/rocksmap-cli list
+./target/release/rocksmap-cli delete mykey
 
-# Database administration
-rocksmap-cli admin stats
-rocksmap-cli admin compact
-rocksmap-cli admin backup /path/to/backup
-
-# Data import/export
-rocksmap-cli export json data.json
-rocksmap-cli import csv data.csv
-
-# Diagnostics and analysis
-rocksmap-cli diag analyze    # Key distribution analysis
-rocksmap-cli diag check      # Integrity verification
-rocksmap-cli diag stats      # Detailed RocksDB statistics
-rocksmap-cli diag benchmark  # Performance benchmarking
-
-# Interactive shell
-rocksmap-cli shell
+# Additional command groups
+./target/release/rocksmap-cli admin   --help   # stats, compact, backup, column families
+./target/release/rocksmap-cli import  --help   # json / csv import
+./target/release/rocksmap-cli export  --help   # json / csv export
+./target/release/rocksmap-cli diag    --help   # analysis, integrity checks, benchmarking
+./target/release/rocksmap-cli shell             # interactive shell
 ```
 
-## 📚 API Documentation
+## Benchmarks
 
-### Basic Operations
+Criterion-based benchmarks live in [benches/](benches/). See [benches/README.md](benches/README.md)
+for what each benchmark measures and how to run them:
 
-```rust
-use rocksmap::RocksMap;
-
-// Open a database
-let mut db = RocksMap::<String, String>::open("./my.db")?;
-
-// Put/Get/Delete
-db.put("key1", &"value1")?;
-let value = db.get(&"key1")?;
-db.delete(&"key1")?;
-
-// Iteration
-for result in db.iter() {
-    let (key, value) = result?;
-    println!("{}: {}", key, value);
-}
-```
-
-### Advanced Features Code Examples
-
-```rust
-// Batch operations
-let mut batch = db.batch();
-batch.put("key1", &"value1")?;
-batch.put("key2", &"value2")?;
-batch.delete("old_key")?;
-batch.write()?;
-
-// TTL support
-db.put_with_ttl("temp_key", &"temp_value", Duration::from_secs(3600))?;
-
-// Range queries
-for result in db.range(&"start_key", &"end_key") {
-    let (key, value) = result?;
-    // Process range results
-}
-
-// Prefix scanning
-for result in db.prefix_scan(&"prefix_") {
-    let (key, value) = result?;
-    // Process prefix matches
-}
-
-// Column families
-let mut cf = db.column_family("namespace")?;
-cf.put("key", &"value")?;
+```bash
+cargo bench
 ```
 
 ## License
 
-This project is licensed under the terms of the [MIT License](LICENSE).
+Licensed under the [MIT License](LICENSE).

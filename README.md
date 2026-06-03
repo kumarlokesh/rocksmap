@@ -8,31 +8,35 @@ A typed, ergonomic map-like layer over [RocksDB](https://rocksdb.org/) in Rust. 
 you store and query strongly-typed keys and values with serde-based serialization, instead of
 hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
-> **Project status — early, pre-1.0 (0.1.x).** The core typed map, column families, and atomic
-> batch writes work and are tested. Several advanced areas — key ordering for range/prefix
-> scans, TTL, and secondary indexes — are still being reworked before 1.0. Treat anything not
-> listed under **Available now** as in progress and subject to change.
+> **Project status — early, pre-1.0 (0.1.x).** The core typed map, column families, atomic
+> batch writes, and ordered iteration/range queries work and are tested. Some advanced areas —
+> prefix scans, TTL, and secondary indexes — are still being reworked before 1.0. Treat anything
+> not listed under **Available now** as in progress and subject to change.
 
 ## Available now
 
 - **Typed map API** — `open`, `get`, `put`, `delete`, `iter`, generic over
   `K, V: Serialize + DeserializeOwned + Clone`.
+- **Logical key ordering** — iteration and `range` queries follow the natural order of the
+  key type (integers, signed numbers, strings, tuples, `Option`, …) via an order-preserving
+  key encoding, regardless of the key's byte layout.
 - **Column families** — named, isolated keyspaces within one database.
 - **Atomic batch writes** — multiple puts/deletes committed together via RocksDB `WriteBatch`.
-- **Pluggable codecs** — `KeyCodec` / `ValueCodec` traits, with bincode as the default.
+- **Serialization codecs** — order-preserving encoding for keys and bincode for values by
+  default; the `KeyCodec` / `ValueCodec` traits are public.
 - **Safe Rust surface** — rocksmap's own crate contains no `unsafe` code (the underlying
   `rocksdb` bindings are FFI and are not counted here).
 
 ## In progress / planned
 
-- **Order-preserving key encoding** so iteration and ranges follow logical key order. Until
-  this lands, `range` only orders correctly for keys whose byte encoding already matches their
-  logical order, and `prefix_scan` is limited to string-like keys.
-- **Correct, seek-based range and prefix scans.**
+- **Correct, seek-based prefix scans.** `prefix_scan` currently does a naive scan and is
+  being rebuilt to seek over the matching key range.
 - **TTL / expiration.** *Not currently functional;* the existing TTL hooks are placeholders
   and do not expire keys.
 - **Atomic, consistent secondary indexes.** The current index helper is experimental and does
   not guarantee atomicity across the data and index on updates.
+- **Selectable key codec.** Keys use the order-preserving codec; an opt-out (e.g. for
+  unordered/bincode keys) is planned.
 
 ## Installation
 

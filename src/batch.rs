@@ -1,11 +1,12 @@
 use crate::codec::{BincodeCodec, KeyCodec, ValueCodec};
 use crate::error::{Error, Result};
+use crate::ordered::{OrderedCodec, OrderedKey};
 use rocksdb::{WriteBatch, WriteOptions, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 
 /// A batch of write operations that can be committed atomically
-pub struct RocksMapBatch<'a, K, V, KC = BincodeCodec<K>, VC = BincodeCodec<V>>
+pub struct RocksMapBatch<'a, K, V, KC = OrderedCodec<K>, VC = BincodeCodec<V>>
 where
     K: Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
@@ -19,9 +20,9 @@ where
     _value_codec: PhantomData<VC>,
 }
 
-impl<'a, K, V> RocksMapBatch<'a, K, V, BincodeCodec<K>, BincodeCodec<V>>
+impl<'a, K, V> RocksMapBatch<'a, K, V, OrderedCodec<K>, BincodeCodec<V>>
 where
-    K: Serialize + DeserializeOwned + Clone,
+    K: Serialize + DeserializeOwned + Clone + OrderedKey,
     V: Serialize + DeserializeOwned + Clone,
 {
     /// Create a new batch operation instance for a RocksDB instance
@@ -39,7 +40,7 @@ where
 
     /// Add a put operation to the batch
     pub fn put(&mut self, key: &K, value: &V) -> Result<&mut Self> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(&key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
         let value_bytes = <BincodeCodec<V> as ValueCodec<V>>::encode(value)?;
 
         match &self.cf_name {
@@ -58,7 +59,7 @@ where
 
     /// Add a delete operation to the batch
     pub fn delete(&mut self, key: &K) -> Result<&mut Self> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
 
         match &self.cf_name {
             Some(cf_name) => {

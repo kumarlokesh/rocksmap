@@ -1,4 +1,4 @@
-use crate::{error::Result, RocksMap};
+use crate::{error::Result, ordered::OrderedKey, RocksMap};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{collections::HashSet, marker::PhantomData, path::Path};
 
@@ -11,9 +11,9 @@ pub trait IndexExtractor<V, SK> {
 /// A secondary index that maps from a secondary key type to the primary key type
 pub struct SecondaryIndex<PK, V, SK, E>
 where
-    PK: Clone + Serialize + DeserializeOwned + std::hash::Hash + std::cmp::Eq,
+    PK: Clone + Serialize + DeserializeOwned + std::hash::Hash + std::cmp::Eq + OrderedKey,
     V: Clone + Serialize + DeserializeOwned,
-    SK: Clone + Serialize + DeserializeOwned,
+    SK: Clone + Serialize + DeserializeOwned + OrderedKey,
     E: IndexExtractor<V, SK>,
 {
     main_store: RocksMap<PK, V>,
@@ -23,9 +23,9 @@ where
 
 impl<PK, V, SK, E> SecondaryIndex<PK, V, SK, E>
 where
-    PK: Clone + Serialize + DeserializeOwned + Eq + std::hash::Hash,
+    PK: Clone + Serialize + DeserializeOwned + Eq + std::hash::Hash + OrderedKey,
     V: Clone + Serialize + DeserializeOwned,
-    SK: Clone + Serialize + DeserializeOwned,
+    SK: Clone + Serialize + DeserializeOwned + OrderedKey,
     E: IndexExtractor<V, SK>,
 {
     /// Create a new secondary index

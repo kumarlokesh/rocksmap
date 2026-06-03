@@ -1,6 +1,7 @@
 use crate::{
     codec::{BincodeCodec, KeyCodec, ValueCodec},
     error::{Error, Result},
+    ordered::{OrderedCodec, OrderedKey},
 };
 use rocksdb::{ColumnFamilyDescriptor, Direction, IteratorMode, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -9,7 +10,7 @@ use std::{marker::PhantomData, path::Path};
 /// The main key-value store abstraction over RocksDB
 pub struct RocksMap<K, V>
 where
-    K: Serialize + DeserializeOwned + Clone,
+    K: Serialize + DeserializeOwned + Clone + OrderedKey,
     V: Serialize + DeserializeOwned + Clone,
 {
     db: DB,
@@ -19,7 +20,7 @@ where
 
 impl<K, V> RocksMap<K, V>
 where
-    K: Serialize + DeserializeOwned + Clone,
+    K: Serialize + DeserializeOwned + Clone + OrderedKey,
     V: Serialize + DeserializeOwned + Clone,
 {
     /// Opens a new RocksMap at the given path, creating it if it doesn't exist
@@ -77,8 +78,8 @@ where
     }
 
     /// Gets a column family handle by name, creating it if it doesn't exist
-    pub fn column_family(&mut self, name: &str) -> Result<RocksMapRef<K, V>> {
-        if !self.db.cf_handle(name).is_some() {
+    pub fn column_family(&mut self, name: &str) -> Result<RocksMapRef<'_, K, V>> {
+        if self.db.cf_handle(name).is_none() {
             self.db
                 .create_cf(name, &Options::default())
                 .map_err(Error::from)?;
@@ -110,7 +111,7 @@ where
 /// This allows us to create multiple views into the same database with different column families.
 pub struct RocksMapRef<'a, K, V>
 where
-    K: Serialize + DeserializeOwned + Clone,
+    K: Serialize + DeserializeOwned + Clone + OrderedKey,
     V: Serialize + DeserializeOwned + Clone,
 {
     db: &'a DB,
@@ -120,7 +121,7 @@ where
 
 impl<'a, K, V> RocksMapRef<'a, K, V>
 where
-    K: Serialize + DeserializeOwned + Clone,
+    K: Serialize + DeserializeOwned + Clone + OrderedKey,
     V: Serialize + DeserializeOwned + Clone,
 {
     /// Returns a reference to the underlying database
@@ -130,7 +131,7 @@ where
 
     /// Retrieve a value by key
     pub fn get(&self, key: &K) -> Result<Option<V>> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
         let result = match &self.cf_name {
             Some(cf_name) => {
                 let cf = self
@@ -153,7 +154,7 @@ where
 
     /// Store a value with the given key
     pub fn put(&self, key: &K, value: &V) -> Result<()> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
         let value_bytes = <BincodeCodec<V> as ValueCodec<V>>::encode(value)?;
 
         match &self.cf_name {
@@ -171,7 +172,7 @@ where
 
     /// Delete a key-value pair
     pub fn delete(&self, key: &K) -> Result<()> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
 
         match &self.cf_name {
             Some(cf_name) => {
@@ -188,12 +189,12 @@ where
 
     /// Returns a batch operation builder that can be used to perform multiple
     /// operations in a single atomic batch
-    pub fn batch(&self) -> crate::batch::RocksMapBatch<K, V> {
+    pub fn batch(&self) -> crate::batch::RocksMapBatch<'_, K, V> {
         crate::batch::RocksMapBatch::new(self.db, self.cf_name.clone())
     }
 
     /// Iterator over all key-value pairs
-    pub fn iter(&self) -> Result<RocksMapIterator<K, V>> {
+    pub fn iter(&self) -> Result<RocksMapIterator<'_, K, V>> {
         let mode = IteratorMode::Start;
         let iter = match &self.cf_name {
             Some(cf_name) => {
@@ -215,8 +216,8 @@ where
     }
 
     /// Range query: Retrieve all key-value pairs within a range [from, to]
-    pub fn range(&self, from: &K, to: &K) -> Result<RocksMapIterator<K, V>> {
-        let from_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(from)?;
+    pub fn range(&self, from: &K, to: &K) -> Result<RocksMapIterator<'_, K, V>> {
+        let from_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(from)?;
 
         let iter = match &self.cf_name {
             Some(cf_name) => {
@@ -233,7 +234,7 @@ where
             }
         };
 
-        let to_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(to)?;
+        let to_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(to)?;
 
         Ok(RocksMapIterator {
             inner: iter,
@@ -244,7 +245,7 @@ where
     }
 
     /// Prefix scan: Retrieve all key-value pairs with keys starting with the given prefix
-    pub fn prefix_scan(&self, prefix: &K) -> Result<RocksMapIterator<K, V>> {
+    pub fn prefix_scan(&self, prefix: &K) -> Result<RocksMapIterator<'_, K, V>> {
         let iter = match &self.cf_name {
             Some(cf_name) => {
                 let cf = self
@@ -269,11 +270,11 @@ where
 
 impl<K, V> RocksMap<K, V>
 where
-    K: Serialize + DeserializeOwned + Clone,
+    K: Serialize + DeserializeOwned + Clone + OrderedKey,
     V: Serialize + DeserializeOwned + Clone,
 {
     pub fn get(&self, key: &K) -> Result<Option<V>> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
         let result = match &self.cf_name {
             Some(cf_name) => {
                 let cf = self
@@ -296,7 +297,7 @@ where
 
     /// Store a value with the given key
     pub fn put(&self, key: K, value: &V) -> Result<()> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(&key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(&key)?;
         let value_bytes = <BincodeCodec<V> as ValueCodec<V>>::encode(value)?;
 
         match &self.cf_name {
@@ -316,7 +317,7 @@ where
 
     /// Delete a key-value pair
     pub fn delete(&self, key: &K) -> Result<()> {
-        let key_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
 
         match &self.cf_name {
             Some(cf_name) => {
@@ -334,7 +335,7 @@ where
     }
 
     /// Iterator over all key-value pairs
-    pub fn iter(&self) -> Result<RocksMapIterator<K, V>> {
+    pub fn iter(&self) -> Result<RocksMapIterator<'_, K, V>> {
         let mode = IteratorMode::Start;
         let iter = match &self.cf_name {
             Some(cf_name) => {
@@ -356,13 +357,13 @@ where
     }
 
     /// Create a batch operation instance for this database
-    pub fn batch(&self) -> crate::batch::RocksMapBatch<K, V> {
+    pub fn batch(&self) -> crate::batch::RocksMapBatch<'_, K, V> {
         crate::batch::RocksMapBatch::new(&self.db, self.cf_name.clone())
     }
 
     /// Range query: Retrieve all key-value pairs within a range [from, to]
-    pub fn range(&self, from: &K, to: &K) -> Result<RocksMapIterator<K, V>> {
-        let from_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(from)?;
+    pub fn range(&self, from: &K, to: &K) -> Result<RocksMapIterator<'_, K, V>> {
+        let from_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(from)?;
 
         let iter = match &self.cf_name {
             Some(cf_name) => {
@@ -379,7 +380,7 @@ where
             }
         };
 
-        let to_bytes = <BincodeCodec<K> as KeyCodec<K>>::encode(to)?;
+        let to_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(to)?;
 
         Ok(RocksMapIterator {
             inner: iter,
@@ -391,7 +392,7 @@ where
 
     /// Prefix scan: Retrieve all key-value pairs with keys starting with the given prefix
     /// Note: This is a simplified implementation that works by iterating all keys
-    pub fn prefix_scan(&self, prefix: &K) -> Result<RocksMapIterator<K, V>> {
+    pub fn prefix_scan(&self, prefix: &K) -> Result<RocksMapIterator<'_, K, V>> {
         let iter = match &self.cf_name {
             Some(cf_name) => {
                 let cf = self
@@ -414,21 +415,24 @@ where
     }
 }
 
+/// Predicate over an encoded key that, when true, ends iteration.
+type EndCondition = Box<dyn Fn(&[u8]) -> bool>;
+
 /// Iterator over RocksMap key-value pairs
 pub struct RocksMapIterator<'a, K, V>
 where
-    K: Serialize + DeserializeOwned,
+    K: Serialize + DeserializeOwned + OrderedKey,
     V: Serialize + DeserializeOwned,
 {
     inner: rocksdb::DBIterator<'a>,
     marker: PhantomData<(K, V)>,
-    end_condition: Box<dyn Fn(&[u8]) -> bool>,
+    end_condition: EndCondition,
     prefix_filter: Option<K>,
 }
 
 impl<'a, K, V> Iterator for RocksMapIterator<'a, K, V>
 where
-    K: Serialize + serde::de::DeserializeOwned + std::fmt::Debug,
+    K: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + OrderedKey,
     V: Serialize + serde::de::DeserializeOwned,
 {
     type Item = Result<(K, V)>;
@@ -447,7 +451,7 @@ where
                 result
                     .map_err(Error::from)
                     .and_then(|(key_bytes, value_bytes)| {
-                        let key = <BincodeCodec<K> as KeyCodec<K>>::decode(&key_bytes)?;
+                        let key = <OrderedCodec<K> as KeyCodec<K>>::decode(&key_bytes)?;
                         let value = <BincodeCodec<V> as ValueCodec<V>>::decode(&value_bytes)?;
                         Ok((key, value))
                     });
@@ -548,7 +552,7 @@ mod tests {
         }
 
         let mut count = 0;
-        for (_count, item) in db.iter().unwrap().enumerate() {
+        for item in db.iter().unwrap() {
             let (key, value) = item.unwrap();
             assert_eq!(key, value.id);
             count += 1;
@@ -571,13 +575,11 @@ mod tests {
             db.put(i, &user).unwrap();
         }
 
-        let mut _count = 0;
         let mut ids = Vec::new();
         for result in db.range(&3, &7).unwrap() {
             let (key, value) = result.unwrap();
             assert_eq!(key, value.id);
             ids.push(key);
-            _count += 1;
         }
 
         assert!(ids.contains(&3));
@@ -625,5 +627,38 @@ mod tests {
         }
 
         assert_eq!(post_count, 2);
+    }
+
+    // With the order-preserving key codec, iteration and ranges follow logical key order
+    // even across byte boundaries.
+    #[test]
+    fn test_range_ordered_across_byte_boundary() {
+        let temp_dir = TempDir::new().unwrap();
+        let db = RocksMap::<u64, u64>::open(temp_dir.path()).unwrap();
+        for k in [1u64, 2, 10, 256, 300, 1000] {
+            db.put(k, &k).unwrap();
+        }
+
+        let order: Vec<u64> = db.iter().unwrap().map(|r| r.unwrap().0).collect();
+        assert_eq!(order, vec![1, 2, 10, 256, 300, 1000]);
+
+        // inclusive range [10, 300]
+        let in_range: Vec<u64> = db.range(&10, &300).unwrap().map(|r| r.unwrap().0).collect();
+        assert_eq!(in_range, vec![10, 256, 300]);
+    }
+
+    #[test]
+    fn test_range_negative_keys() {
+        let temp_dir = TempDir::new().unwrap();
+        let db = RocksMap::<i64, i64>::open(temp_dir.path()).unwrap();
+        for k in [-100i64, -1, 0, 1, 100] {
+            db.put(k, &k).unwrap();
+        }
+
+        let order: Vec<i64> = db.iter().unwrap().map(|r| r.unwrap().0).collect();
+        assert_eq!(order, vec![-100, -1, 0, 1, 100]);
+
+        let in_range: Vec<i64> = db.range(&-50, &50).unwrap().map(|r| r.unwrap().0).collect();
+        assert_eq!(in_range, vec![-1, 0, 1]);
     }
 }

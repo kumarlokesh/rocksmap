@@ -82,7 +82,7 @@ pub fn shell_command(db_path: &Path, _format: &OutputFormat) -> Result<()> {
                 match db.iter() {
                     Ok(iterator) => {
                         let mut count = 0;
-                        println!("{:<20} | {}", "Key", "Value");
+                        println!("{:<20} | Value", "Key");
                         println!("{:-<20}-+-{:-<40}", "", "");
 
                         for result in iterator {
@@ -128,7 +128,7 @@ pub fn shell_command(db_path: &Path, _format: &OutputFormat) -> Result<()> {
                         Ok(iterator) => {
                             let mut count = 0;
                             println!("Range scan [{}, {}]:", from, to);
-                            println!("{:<20} | {}", "Key", "Value");
+                            println!("{:<20} | Value", "Key");
                             println!("{:-<20}-+-{:-<40}", "", "");
 
                             for result in iterator {
@@ -169,7 +169,7 @@ pub fn shell_command(db_path: &Path, _format: &OutputFormat) -> Result<()> {
                         Ok(iterator) => {
                             let mut count = 0;
                             println!("Prefix scan for '{}':", prefix);
-                            println!("{:<20} | {}", "Key", "Value");
+                            println!("{:<20} | Value", "Key");
                             println!("{:-<20}-+-{:-<40}", "", "");
 
                             for result in iterator {

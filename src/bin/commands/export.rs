@@ -132,7 +132,7 @@ fn export_to_csv(
     let mut writer = csv::Writer::from_writer(file);
 
     writer
-        .write_record(&["key", "value"])
+        .write_record(["key", "value"])
         .context("Failed to write CSV header")?;
 
     let mut exported_count = 0;
@@ -147,7 +147,7 @@ fn export_to_csv(
 
             for result in iterator {
                 match result {
-                    Ok((key, value)) => match writer.write_record(&[&key, &value]) {
+                    Ok((key, value)) => match writer.write_record([&key, &value]) {
                         Ok(_) => exported_count += 1,
                         Err(e) => {
                             errors.push(format!("Failed to write record for key '{}': {}", key, e))
@@ -164,7 +164,7 @@ fn export_to_csv(
 
             for result in iterator {
                 match result {
-                    Ok((key, value)) => match writer.write_record(&[&key, &value]) {
+                    Ok((key, value)) => match writer.write_record([&key, &value]) {
                         Ok(_) => exported_count += 1,
                         Err(e) => {
                             errors.push(format!("Failed to write record for key '{}': {}", key, e))

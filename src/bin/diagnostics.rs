@@ -395,8 +395,7 @@ fn benchmark_database(db_path: &PathBuf, operations: usize, op_type: &str) -> Re
                 .map(|i| format!("bench_delete_key_{}", i))
                 .collect();
 
-            for i in 0..operations {
-                let key = &keys[i];
+            for (i, key) in keys.iter().enumerate() {
                 let value = format!("bench_value_{}", i);
                 db.put(key.clone(), &value)?;
             }

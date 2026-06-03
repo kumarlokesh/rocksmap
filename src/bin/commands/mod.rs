@@ -263,7 +263,7 @@ pub fn list_command(
                 println!("No keys found");
             } else {
                 println!("Found {} key(s):", count);
-                println!("{:<20} | {}", "Key", "Value");
+                println!("{:<20} | Value", "Key");
                 println!("{:-<20}-+-{:-<40}", "", "");
                 for (key, value) in &results {
                     let truncated_value = if value.len() > 40 {
@@ -362,7 +362,7 @@ pub fn scan_command(
                 println!("No keys found in range [{}, {}]", from, to);
             } else {
                 println!("Found {} key(s) in range [{}, {}]:", count, from, to);
-                println!("{:<20} | {}", "Key", "Value");
+                println!("{:<20} | Value", "Key");
                 println!("{:-<20}-+-{:-<40}", "", "");
                 for (key, value) in &results {
                     let truncated_value = if value.len() > 40 {

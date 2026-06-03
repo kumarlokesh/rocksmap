@@ -2,9 +2,9 @@ use crate::error::{Error, Result};
 use rocksdb::{Options, DB};
 use std::time::Duration;
 
-/// Note: TTL filter implementation simplified for now
-/// In this version we focus on providing placeholder API that will compile
-/// Full TTL implementation requires more complex setup with RocksDB
+// Note: TTL filter implementation simplified for now.
+// In this version we focus on providing placeholder API that will compile.
+// Full TTL implementation requires more complex setup with RocksDB.
 
 /// Extension trait for RocksDB Options to add TTL support
 pub trait OptionsExt {

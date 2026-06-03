@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n1. List all keys:");
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "rocksmap-cli",
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("2. Get specific value:");
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "rocksmap-cli",
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("3. Database statistics:");
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "rocksmap-cli",
@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("4. Database analysis:");
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "rocksmap-cli",
@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("5. Integrity check:");
     let output = Command::new("cargo")
-        .args(&[
+        .args([
             "run",
             "--bin",
             "rocksmap-cli",

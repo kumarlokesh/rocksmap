@@ -56,10 +56,11 @@ fn read_array<const N: usize>(input: &mut &[u8]) -> Result<[u8; N]> {
     Ok(arr)
 }
 
-/// Encode raw bytes with `0x00` escaping and a `0x00 0x00` terminator (FoundationDB tuple
-/// scheme). The terminator (`0x00 0x00`) sorts below an escaped zero (`0x00 0xFF`) and below
-/// any non-zero byte, so a shorter string sorts before a longer one sharing its prefix.
-fn encode_bytes(bytes: &[u8], out: &mut Vec<u8>) {
+/// Escape `0x00` as `0x00 0xFF`, without a terminator. This is the leading portion of a
+/// byte-string key's encoding, shared by every key that begins with `bytes` — the basis for
+/// prefix scans over `String`/`Vec<u8>` keys.
+pub(crate) fn encode_bytes_no_terminator(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(bytes.len());
     for &b in bytes {
         if b == 0x00 {
             out.push(0x00);
@@ -68,6 +69,14 @@ fn encode_bytes(bytes: &[u8], out: &mut Vec<u8>) {
             out.push(b);
         }
     }
+    out
+}
+
+/// Encode raw bytes with `0x00` escaping and a `0x00 0x00` terminator. The terminator
+/// (`0x00 0x00`) sorts below an escaped zero (`0x00 0xFF`) and below any non-zero byte, so a
+/// shorter string sorts before a longer one sharing its prefix.
+fn encode_bytes(bytes: &[u8], out: &mut Vec<u8>) {
+    out.extend_from_slice(&encode_bytes_no_terminator(bytes));
     out.push(0x00);
     out.push(0x00);
 }
@@ -323,6 +332,33 @@ impl<K: OrderedKey> KeyCodec<K> for OrderedCodec<K> {
 pub trait OrderedKeyCodec<K>: KeyCodec<K> {}
 
 impl<K: OrderedKey> OrderedKeyCodec<K> for OrderedCodec<K> {}
+
+/// Byte-string key types that support raw prefix scans (`scan_prefix`).
+///
+/// Implemented for `String` (`Prefix = str`) and `Vec<u8>` (`Prefix = [u8]`). The encoded
+/// prefix is the key body's escaping *without* the terminator, so it is a true byte-prefix of
+/// the stored encoding of every key that begins with it.
+pub trait PrefixKey: OrderedKey {
+    /// The borrowed prefix type (`str` for `String`, `[u8]` for `Vec<u8>`).
+    type Prefix: ?Sized;
+
+    /// Encode a prefix to the leading bytes shared by all matching keys' encodings.
+    fn encode_prefix(prefix: &Self::Prefix) -> Vec<u8>;
+}
+
+impl PrefixKey for String {
+    type Prefix = str;
+    fn encode_prefix(prefix: &str) -> Vec<u8> {
+        encode_bytes_no_terminator(prefix.as_bytes())
+    }
+}
+
+impl PrefixKey for Vec<u8> {
+    type Prefix = [u8];
+    fn encode_prefix(prefix: &[u8]) -> Vec<u8> {
+        encode_bytes_no_terminator(prefix)
+    }
+}
 
 #[cfg(test)]
 mod tests {

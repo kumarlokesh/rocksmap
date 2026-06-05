@@ -15,7 +15,9 @@ pub use crate::batch::RocksMapBatch;
 pub use crate::codec::{BincodeCodec, KeyCodec, ValueCodec};
 pub use crate::error::{Error, Result};
 pub use crate::index::{IndexExtractor, SecondaryIndex};
-pub use crate::ordered::{OrderedCodec, OrderedF32, OrderedF64, OrderedKey, OrderedKeyCodec};
+pub use crate::ordered::{
+    OrderedCodec, OrderedF32, OrderedF64, OrderedKey, OrderedKeyCodec, PrefixKey,
+};
 pub use crate::rocks_map::{RocksMap, RocksMapIterator};
 pub use crate::ttl::{ttl_utils, OptionsExt};
 

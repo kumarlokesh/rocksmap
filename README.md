@@ -9,17 +9,21 @@ you store and query strongly-typed keys and values with serde-based serializatio
 hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
 > **Project status — early, pre-1.0 (0.1.x).** The core typed map, column families, atomic
-> batch writes, and ordered iteration/range queries work and are tested. Some advanced areas —
-> prefix scans, TTL, and secondary indexes — are still being reworked before 1.0. Treat anything
-> not listed under **Available now** as in progress and subject to change.
+> batch writes, and ordered iteration / range / prefix queries work and are tested. Some advanced
+> areas — TTL and secondary indexes — are still being reworked before 1.0. Treat anything not
+> listed under **Available now** as in progress and subject to change.
 
 ## Available now
 
 - **Typed map API** — `open`, `get`, `put`, `delete`, `iter`, generic over
   `K, V: Serialize + DeserializeOwned + Clone`.
-- **Logical key ordering** — iteration and `range` queries follow the natural order of the
-  key type (integers, signed numbers, strings, tuples, `Option`, …) via an order-preserving
-  key encoding, regardless of the key's byte layout.
+- **Logical key ordering** — iteration and queries follow the natural order of the key type
+  (integers, signed numbers, strings, tuples, `Option`, …) via an order-preserving key
+  encoding, regardless of the key's byte layout.
+- **Range queries** — `range`/`range_rev` accept any `RangeBounds` (`10..=20`, `10..`, `..20`,
+  `..`), forward or reverse, bounded by RocksDB so they don't scan past the range.
+- **Prefix scans** — `scan_prefix` for `String`/`Vec<u8>` keys, and `scan_prefix_fields` for
+  the leading field(s) of a composite (tuple) key.
 - **Column families** — named, isolated keyspaces within one database.
 - **Atomic batch writes** — multiple puts/deletes committed together via RocksDB `WriteBatch`.
 - **Serialization codecs** — order-preserving encoding for keys and bincode for values by
@@ -29,8 +33,6 @@ hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
 ## In progress / planned
 
-- **Correct, seek-based prefix scans.** `prefix_scan` currently does a naive scan and is
-  being rebuilt to seek over the matching key range.
 - **TTL / expiration.** *Not currently functional;* the existing TTL hooks are placeholders
   and do not expire keys.
 - **Atomic, consistent secondary indexes.** The current index helper is experimental and does
@@ -85,33 +87,18 @@ fn main() -> Result<(), Error> {
 }
 ```
 
-### Column families
+### Examples
 
-A column family is a named keyspace that shares the same key/value types as its parent map
-(`User` is the type defined in the example above):
+Runnable, compiled examples live in [examples/](examples/). Run any with
+`cargo run --example <name>`:
 
-```rust
-let mut db = RocksMap::<u64, User>::open("./app.db")?;
-
-let admins = db.column_family("admins")?;
-let alice = User { id: 1, name: "Alice".to_string(), active: true };
-admins.put(&1, &alice)?; // on a column family, `put` takes the key by reference
-let _ = admins.get(&1)?;
-```
-
-### Atomic batch writes
-
-```rust
-let db = RocksMap::<u64, User>::open("./app.db")?;
-let alice = User { id: 1, name: "Alice".to_string(), active: true };
-let bob = User { id: 2, name: "Bob".to_string(), active: false };
-
-let mut batch = db.batch();
-batch.put(&1, &alice)?;
-batch.put(&2, &bob)?;
-batch.delete(&3)?;
-batch.commit()?; // all operations apply atomically, or none do
-```
+| Example | Shows |
+| --- | --- |
+| [`basic`](examples/basic.rs) | typed `open`/`put`/`get`/`iter`/`delete` |
+| [`column_families`](examples/column_families.rs) | named, isolated keyspaces in one database |
+| [`batch`](examples/batch.rs) | atomic multi-key `WriteBatch` |
+| [`range_and_prefix`](examples/range_and_prefix.rs) | `range`/`range_rev` and `scan_prefix`/`scan_prefix_fields` |
+| [`cli_tool_demo`](examples/cli_tool_demo.rs) | driving the `rocksmap-cli` binary |
 
 ## CLI
 

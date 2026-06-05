@@ -194,7 +194,7 @@ pub fn list_command(
                 .column_family(cf_name)
                 .context("Failed to get column family")?;
             let iterator = cf_ref
-                .prefix_scan(&prefix_str.to_string())
+                .scan_prefix(prefix_str)
                 .context("Failed to create prefix iterator")?;
 
             for result in iterator {
@@ -217,7 +217,7 @@ pub fn list_command(
         }
         (None, Some(prefix_str)) => {
             let iterator = db
-                .prefix_scan(&prefix_str.to_string())
+                .scan_prefix(prefix_str)
                 .context("Failed to create prefix iterator")?;
 
             for result in iterator {
@@ -312,7 +312,7 @@ pub fn scan_command(
                 .column_family(cf_name)
                 .context("Failed to get column family")?;
             let iterator = cf_ref
-                .range(&from.to_string(), &to.to_string())
+                .range(from.to_string()..=to.to_string())
                 .context("Failed to create range iterator")?;
 
             for result in iterator {
@@ -323,7 +323,7 @@ pub fn scan_command(
         }
         None => {
             let iterator = db
-                .range(&from.to_string(), &to.to_string())
+                .range(from.to_string()..=to.to_string())
                 .context("Failed to create range iterator")?;
 
             for result in iterator {

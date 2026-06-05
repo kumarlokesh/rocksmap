@@ -124,7 +124,7 @@ pub fn shell_command(db_path: &Path, _format: &OutputFormat) -> Result<()> {
                     let from = parts[1];
                     let to = parts[2];
 
-                    match db.range(&from.to_string(), &to.to_string()) {
+                    match db.range(from.to_string()..=to.to_string()) {
                         Ok(iterator) => {
                             let mut count = 0;
                             println!("Range scan [{}, {}]:", from, to);
@@ -165,7 +165,7 @@ pub fn shell_command(db_path: &Path, _format: &OutputFormat) -> Result<()> {
                 if parts.len() >= 2 {
                     let prefix = parts[1];
 
-                    match db.prefix_scan(&prefix.to_string()) {
+                    match db.scan_prefix(prefix) {
                         Ok(iterator) => {
                             let mut count = 0;
                             println!("Prefix scan for '{}':", prefix);

@@ -3,7 +3,7 @@ use std::process::Command;
 use tempfile::TempDir;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🛠️ RocksMap CLI Usage Example");
+    println!("RocksMap CLI Usage Example");
 
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path();
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db_path_str = db_path.to_str().unwrap();
 
-    println!("\n📋 CLI Commands Demonstration:");
+    println!("\nCLI Commands Demonstration:");
 
     println!("\n1. List all keys:");
     let output = Command::new("cargo")
@@ -94,6 +94,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .output()?;
     println!("{}", String::from_utf8_lossy(&output.stdout));
 
-    println!("✅ CLI demonstration completed!");
+    println!("CLI demonstration completed!");
     Ok(())
 }

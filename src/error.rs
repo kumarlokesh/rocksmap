@@ -24,6 +24,11 @@ pub enum Error {
     #[error("Invalid database path: {0}")]
     InvalidPath(PathBuf),
 
+    /// The on-disk format does not match how the database is being opened
+    /// (e.g. opening a TTL database as a plain map, or an unknown format version).
+    #[error("Format mismatch: {0}")]
+    FormatMismatch(String),
+
     /// Other unexpected errors
     #[error("Unexpected error: {0}")]
     Other(String),

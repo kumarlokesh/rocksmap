@@ -1,6 +1,7 @@
 use crate::{
     codec::{BincodeCodec, KeyCodec, ValueCodec},
     error::{Error, Result},
+    meta,
     ordered::{OrderedCodec, OrderedKey, PrefixKey},
 };
 use rocksdb::{ColumnFamily, ColumnFamilyDescriptor, IteratorMode, Options, ReadOptions, DB};
@@ -33,30 +34,23 @@ where
     }
 
     /// Opens a RocksMap with custom options
-    pub fn open_with_options<P: AsRef<Path>>(path: P, mut options: Options) -> Result<Self> {
-        let path = path.as_ref().to_path_buf();
-
-        if !path.exists() {
-            std::fs::create_dir_all(&path).map_err(|_| Error::InvalidPath(path.clone()))?;
-        }
-
-        options.create_if_missing(true);
-        options.create_missing_column_families(true);
-
-        let db = DB::open(&options, &path).map_err(Error::from)?;
-
-        Ok(Self {
-            db,
-            cf_name: None,
-            _marker: PhantomData,
-        })
+    pub fn open_with_options<P: AsRef<Path>>(path: P, options: Options) -> Result<Self> {
+        Self::open_internal(path, options, &[])
     }
 
     /// Opens a RocksMap with the specified column families
     pub fn open_with_cfs<P: AsRef<Path>>(
         path: P,
-        mut options: Options,
+        options: Options,
         column_families: &[&str],
+    ) -> Result<Self> {
+        Self::open_internal(path, options, column_families)
+    }
+
+    fn open_internal<P: AsRef<Path>>(
+        path: P,
+        mut options: Options,
+        extra_cfs: &[&str],
     ) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
 
@@ -67,12 +61,23 @@ where
         options.create_if_missing(true);
         options.create_missing_column_families(true);
 
-        let cf_descriptors: Vec<ColumnFamilyDescriptor> = column_families
+        // Open every existing column family plus the metadata CF; the metadata CF uses default
+        // options (it holds no user data), the rest use the caller's options.
+        let names = meta::all_cf_names(&options, &path, extra_cfs);
+        let descriptors: Vec<ColumnFamilyDescriptor> = names
             .iter()
-            .map(|name| ColumnFamilyDescriptor::new(*name, options.clone()))
+            .map(|name| {
+                let cf_opts = if name == meta::META_CF {
+                    Options::default()
+                } else {
+                    options.clone()
+                };
+                ColumnFamilyDescriptor::new(name, cf_opts)
+            })
             .collect();
 
-        let db = DB::open_cf_descriptors(&options, &path, cf_descriptors).map_err(Error::from)?;
+        let db = DB::open_cf_descriptors(&options, &path, descriptors).map_err(Error::from)?;
+        meta::verify_or_write_kind(&db, meta::MapKind::Plain)?;
 
         Ok(Self {
             db,

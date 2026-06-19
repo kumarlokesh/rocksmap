@@ -29,6 +29,10 @@ pub enum Error {
     #[error("Format mismatch: {0}")]
     FormatMismatch(String),
 
+    /// A write would violate a unique secondary index constraint.
+    #[error("Unique constraint violation: {0}")]
+    UniqueViolation(String),
+
     /// Other unexpected errors
     #[error("Unexpected error: {0}")]
     Other(String),

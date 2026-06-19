@@ -8,10 +8,10 @@ A typed, ergonomic map-like layer over [RocksDB](https://rocksdb.org/) in Rust. 
 you store and query strongly-typed keys and values with serde-based serialization, instead of
 hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
-> **Project status — early, pre-1.0 (0.1.x).** The core typed map, column families, atomic
-> batch writes, ordered iteration / range / prefix queries, and per-key TTL work and are tested.
-> Secondary indexes are still being reworked before 1.0. Treat anything not listed under
-> **Available now** as in progress and subject to change.
+> **Project status — early, pre-1.0 (0.1.x).** The typed map, column families, atomic batch
+> writes, ordered iteration / range / prefix queries, per-key TTL, and atomic secondary indexes
+> all work and are tested. APIs may still change before 1.0; treat anything not listed under
+> **Available now** as in progress.
 
 ## Available now
 
@@ -29,6 +29,10 @@ hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 - **Per-key TTL** — `TtlRocksMap` with `put_with_ttl`/`put_with_expiry` and an optional default
   TTL. Expired entries read as absent immediately and are physically reclaimed at compaction;
   the clock is injectable for testing.
+- **Atomic secondary indexes** — `IndexedRocksMap` maintains the data and every declared index
+  in one transaction (`TransactionDB`), so updates/deletes keep the index consistent and a
+  crash can't leave it diverged. Supports multiple indexes, unique constraints, typed lookup
+  handles, and rebuild.
 - **Serialization codecs** — order-preserving encoding for keys and bincode for values by
   default; the `KeyCodec` / `ValueCodec` traits are public.
 - **Safe Rust surface** — rocksmap's own crate contains no `unsafe` code (the underlying
@@ -36,8 +40,6 @@ hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
 ## In progress / planned
 
-- **Atomic, consistent secondary indexes.** The current index helper is experimental and does
-  not guarantee atomicity across the data and index on updates.
 - **Selectable key codec.** Keys use the order-preserving codec; an opt-out (e.g. for
   unordered/bincode keys) is planned.
 
@@ -100,6 +102,7 @@ Runnable, compiled examples live in [examples/](examples/). Run any with
 | [`batch`](examples/batch.rs) | atomic multi-key `WriteBatch` |
 | [`range_and_prefix`](examples/range_and_prefix.rs) | `range`/`range_rev` and `scan_prefix`/`scan_prefix_fields` |
 | [`ttl`](examples/ttl.rs) | per-key expiry with `TtlRocksMap` and an injectable clock |
+| [`secondary_indexes`](examples/secondary_indexes.rs) | atomic indexes, unique constraints, and consistent updates with `IndexedRocksMap` |
 | [`cli_tool_demo`](examples/cli_tool_demo.rs) | driving the `rocksmap-cli` binary |
 
 ## CLI

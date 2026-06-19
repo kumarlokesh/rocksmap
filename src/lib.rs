@@ -17,7 +17,7 @@ pub use crate::batch::RocksMapBatch;
 pub use crate::clock::{Clock, ManualClock, SystemClock};
 pub use crate::codec::{BincodeCodec, KeyCodec, ValueCodec};
 pub use crate::error::{Error, Result};
-pub use crate::index::{IndexExtractor, SecondaryIndex};
+pub use crate::index::{Index, IndexedRocksMap, IndexedRocksMapBuilder};
 pub use crate::ordered::{
     OrderedCodec, OrderedF32, OrderedF64, OrderedKey, OrderedKeyCodec, PrefixKey,
 };

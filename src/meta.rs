@@ -1,11 +1,13 @@
 //! Database metadata stored in a dedicated `__rocksmap_meta` column family.
 //!
-//! Records the format version and the map "kind" (plain vs TTL) so that reopening a database
-//! the wrong way (e.g. a TTL store as a plain map) fails loudly instead of mis-decoding values.
-//! Kept out of the user keyspace in its own column family so it never appears in iteration.
+//! Records the format version, the map "kind" (plain / TTL / indexed), and (for indexed maps)
+//! the declared index names and any in-progress rebuild. Reopening a database the wrong way
+//! (e.g. a TTL store as a plain map, or with a different index set) fails loudly via
+//! [`Error::FormatMismatch`] instead of mis-decoding values. Kept in its own column family so
+//! it never appears in user iteration.
 
 use crate::error::{Error, Result};
-use rocksdb::{Options, DB};
+use rocksdb::{ColumnFamily, Options, TransactionDB, DB};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -13,6 +15,8 @@ use std::path::Path;
 pub const META_CF: &str = "__rocksmap_meta";
 
 const SCHEMA_KEY: &[u8] = b"schema";
+const INDEXES_KEY: &[u8] = b"indexes";
+const REBUILD_KEY: &[u8] = b"rebuilding";
 const FORMAT_VERSION: u16 = 1;
 
 /// How a database's values are laid out on disk.
@@ -22,6 +26,8 @@ pub enum MapKind {
     Plain,
     /// TTL envelope values (expiry header + payload).
     Ttl,
+    /// Indexed dataset (data CF + index CFs, transactional).
+    Indexed,
 }
 
 impl MapKind {
@@ -29,14 +35,12 @@ impl MapKind {
         match self {
             MapKind::Plain => 0,
             MapKind::Ttl => 1,
+            MapKind::Indexed => 2,
         }
     }
 
     fn label(self) -> &'static str {
-        match self {
-            MapKind::Plain => "plain",
-            MapKind::Ttl => "ttl",
-        }
+        label_of(self.tag())
     }
 }
 
@@ -44,8 +48,54 @@ fn label_of(tag: u8) -> &'static str {
     match tag {
         0 => "plain",
         1 => "ttl",
+        2 => "indexed",
         _ => "unknown",
     }
+}
+
+/// Minimal key-value access over the metadata column family, implemented for both the plain
+/// [`DB`] and the transactional [`TransactionDB`].
+pub trait KvStore {
+    fn cf(&self, name: &str) -> Option<&ColumnFamily>;
+    fn get_raw(&self, cf: &ColumnFamily, key: &[u8]) -> Result<Option<Vec<u8>>>;
+    fn put_raw(&self, cf: &ColumnFamily, key: &[u8], value: &[u8]) -> Result<()>;
+    fn delete_raw(&self, cf: &ColumnFamily, key: &[u8]) -> Result<()>;
+}
+
+impl KvStore for DB {
+    fn cf(&self, name: &str) -> Option<&ColumnFamily> {
+        self.cf_handle(name)
+    }
+    fn get_raw(&self, cf: &ColumnFamily, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.get_cf(cf, key).map_err(Error::from)
+    }
+    fn put_raw(&self, cf: &ColumnFamily, key: &[u8], value: &[u8]) -> Result<()> {
+        self.put_cf(cf, key, value).map_err(Error::from)
+    }
+    fn delete_raw(&self, cf: &ColumnFamily, key: &[u8]) -> Result<()> {
+        self.delete_cf(cf, key).map_err(Error::from)
+    }
+}
+
+impl KvStore for TransactionDB {
+    fn cf(&self, name: &str) -> Option<&ColumnFamily> {
+        self.cf_handle(name)
+    }
+    fn get_raw(&self, cf: &ColumnFamily, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.get_cf(cf, key).map_err(Error::from)
+    }
+    fn put_raw(&self, cf: &ColumnFamily, key: &[u8], value: &[u8]) -> Result<()> {
+        self.put_cf(cf, key, value).map_err(Error::from)
+    }
+    fn delete_raw(&self, cf: &ColumnFamily, key: &[u8]) -> Result<()> {
+        self.delete_cf(cf, key).map_err(Error::from)
+    }
+}
+
+fn meta_cf<S: KvStore>(store: &S) -> Result<&ColumnFamily> {
+    store
+        .cf(META_CF)
+        .ok_or_else(|| Error::Other(format!("missing `{META_CF}` column family")))
 }
 
 /// Existing column families for the database at `path`, or `["default"]` if it does not exist
@@ -67,12 +117,9 @@ pub fn all_cf_names(opts: &Options, path: &Path, extra: &[&str]) -> Vec<String> 
 }
 
 /// Verify the stored kind matches `kind`, writing it if the database is fresh.
-pub fn verify_or_write_kind(db: &DB, kind: MapKind) -> Result<()> {
-    let cf = db
-        .cf_handle(META_CF)
-        .ok_or_else(|| Error::Other(format!("missing `{META_CF}` column family")))?;
-
-    match db.get_cf(cf, SCHEMA_KEY).map_err(Error::from)? {
+pub fn verify_or_write_kind<S: KvStore>(store: &S, kind: MapKind) -> Result<()> {
+    let cf = meta_cf(store)?;
+    match store.get_raw(cf, SCHEMA_KEY)? {
         Some(bytes) => {
             if bytes.len() < 3 {
                 return Err(Error::FormatMismatch("corrupt metadata record".to_string()));
@@ -97,7 +144,43 @@ pub fn verify_or_write_kind(db: &DB, kind: MapKind) -> Result<()> {
             let mut record = Vec::with_capacity(3);
             record.extend_from_slice(&FORMAT_VERSION.to_be_bytes());
             record.push(kind.tag());
-            db.put_cf(cf, SCHEMA_KEY, record).map_err(Error::from)
+            store.put_raw(cf, SCHEMA_KEY, &record)
         }
     }
+}
+
+/// Verify the declared index name set matches what the database was created with, or record it.
+pub fn verify_or_write_indexes<S: KvStore>(store: &S, sorted_names: &[String]) -> Result<()> {
+    let cf = meta_cf(store)?;
+    let want = bincode::serialize(sorted_names).map_err(|e| Error::Serialization(e.to_string()))?;
+    match store.get_raw(cf, INDEXES_KEY)? {
+        Some(have) if have == want => Ok(()),
+        Some(have) => {
+            let existing: Vec<String> = bincode::deserialize(&have).unwrap_or_default();
+            Err(Error::FormatMismatch(format!(
+                "database was created with indexes {existing:?} but opened with {sorted_names:?}"
+            )))
+        }
+        None => store.put_raw(cf, INDEXES_KEY, &want),
+    }
+}
+
+/// Mark that `index_name` is being rebuilt (so a crash mid-rebuild is detectable on reopen).
+pub fn set_rebuilding<S: KvStore>(store: &S, index_name: &str) -> Result<()> {
+    let cf = meta_cf(store)?;
+    store.put_raw(cf, REBUILD_KEY, index_name.as_bytes())
+}
+
+/// The index currently flagged as rebuilding, if any.
+pub fn get_rebuilding<S: KvStore>(store: &S) -> Result<Option<String>> {
+    let cf = meta_cf(store)?;
+    Ok(store
+        .get_raw(cf, REBUILD_KEY)?
+        .map(|b| String::from_utf8_lossy(&b).into_owned()))
+}
+
+/// Clear the rebuild flag.
+pub fn clear_rebuilding<S: KvStore>(store: &S) -> Result<()> {
+    let cf = meta_cf(store)?;
+    store.delete_raw(cf, REBUILD_KEY)
 }

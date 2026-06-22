@@ -2,6 +2,11 @@
 //!
 //! `rocksmap` provides a type-safe, ergonomic interface to RocksDB with
 //! map-like API and serialization/deserialization support.
+//!
+//! rocksmap's own crate adds no `unsafe` code (the underlying `rocksdb` bindings are FFI);
+//! this is enforced by `#![forbid(unsafe_code)]`.
+
+#![forbid(unsafe_code)]
 
 mod batch;
 mod clock;

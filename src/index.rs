@@ -206,6 +206,38 @@ where
         }
     }
 
+    /// Returns `true` if the map contains a value for `key`.
+    pub fn contains(&self, key: &K) -> Result<bool> {
+        let data_cf = self.cf(DATA_CF)?;
+        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
+        Ok(self
+            .db
+            .get_cf(data_cf, key_bytes)
+            .map_err(Error::from)?
+            .is_some())
+    }
+
+    /// Returns `true` if the map has no entries.
+    pub fn is_empty(&self) -> Result<bool> {
+        let data_cf = self.cf(DATA_CF)?;
+        match self.db.iterator_cf(data_cf, IteratorMode::Start).next() {
+            None => Ok(true),
+            Some(Ok(_)) => Ok(false),
+            Some(Err(e)) => Err(Error::from(e)),
+        }
+    }
+
+    /// Exact number of entries. **O(n)** — performs a full scan of the data.
+    pub fn count(&self) -> Result<usize> {
+        let data_cf = self.cf(DATA_CF)?;
+        let mut count = 0;
+        for item in self.db.iterator_cf(data_cf, IteratorMode::Start) {
+            item.map_err(Error::from)?;
+            count += 1;
+        }
+        Ok(count)
+    }
+
     /// Insert or replace a value, updating every index in one transaction.
     pub fn put(&self, key: K, value: &V) -> Result<()> {
         let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(&key)?;

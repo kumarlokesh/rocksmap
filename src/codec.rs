@@ -4,6 +4,11 @@ use std::marker::PhantomData;
 
 /// Trait defining how to encode a key for storage
 pub trait KeyCodec<K> {
+    /// Stable identifier for this codec, recorded in database metadata so that reopening with a
+    /// different key codec fails loudly. Built-in codecs use small values (`OrderedCodec` = 1,
+    /// `BincodeCodec` = 2); custom codecs should use values `>= 128` to avoid collisions.
+    const ID: u8;
+
     /// Convert a key to bytes for storage
     fn encode(key: &K) -> Result<Vec<u8>>;
 
@@ -27,6 +32,8 @@ impl<K> KeyCodec<K> for BincodeCodec<K>
 where
     K: Serialize + DeserializeOwned,
 {
+    const ID: u8 = 2;
+
     fn encode(key: &K) -> Result<Vec<u8>> {
         bincode::serialize(key).map_err(|e| Error::Serialization(e.to_string()))
     }

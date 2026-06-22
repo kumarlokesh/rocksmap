@@ -218,6 +218,30 @@ where
         self.db.delete(key_bytes).map_err(Error::from)
     }
 
+    /// Returns `true` if a non-expired value exists for `key`.
+    pub fn contains(&self, key: &K) -> Result<bool> {
+        Ok(self.get(key)?.is_some())
+    }
+
+    /// Returns `true` if the map has no non-expired entries.
+    pub fn is_empty(&self) -> Result<bool> {
+        match self.iter().next() {
+            None => Ok(true),
+            Some(Ok(_)) => Ok(false),
+            Some(Err(e)) => Err(e),
+        }
+    }
+
+    /// Number of non-expired entries. **O(n)** — performs a full scan, skipping expired keys.
+    pub fn count(&self) -> Result<usize> {
+        let mut count = 0;
+        for item in self.iter() {
+            item?;
+            count += 1;
+        }
+        Ok(count)
+    }
+
     /// Iterate non-expired key-value pairs in ascending key order. Expiry is evaluated against
     /// the clock at the moment iteration begins.
     pub fn iter(&self) -> TtlIterator<'_, K, V> {

@@ -1,8 +1,12 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
-/// Errors that can occur in RocksMap operations
+/// Errors that can occur in RocksMap operations.
+///
+/// Marked `#[non_exhaustive]`: match on it with a wildcard arm, as new variants may be added in
+/// future releases without a breaking change.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Error from the underlying RocksDB instance
     #[error("RocksDB error: {0}")]

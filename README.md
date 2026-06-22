@@ -15,7 +15,8 @@ hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
 
 ## Available now
 
-- **Typed map API** — `open`, `get`, `put`, `delete`, `iter`, generic over
+- **Typed map API** — `open`, `get`, `put`, `delete`, `iter`, plus `contains`, `is_empty`,
+  exact `count` (O(n)) and an O(1) `len_estimate`, generic over
   `K, V: Serialize + DeserializeOwned + Clone`.
 - **Logical key ordering** — iteration and queries follow the natural order of the key type
   (integers, signed numbers, strings, tuples, `Option`, …) via an order-preserving key
@@ -33,15 +34,18 @@ hand-rolling byte-slice plumbing on top of the raw `rocksdb` crate.
   in one transaction (`TransactionDB`), so updates/deletes keep the index consistent and a
   crash can't leave it diverged. Supports multiple indexes, unique constraints, typed lookup
   handles, and rebuild.
-- **Serialization codecs** — order-preserving encoding for keys and bincode for values by
-  default; the `KeyCodec` / `ValueCodec` traits are public.
-- **Safe Rust surface** — rocksmap's own crate contains no `unsafe` code (the underlying
-  `rocksdb` bindings are FFI and are not counted here).
+- **Selectable key codec** — the order-preserving `OrderedCodec` is the default; keys that don't
+  need ordered queries can opt into `BincodeCodec` (or a custom codec) via
+  `RocksMap<K, V, KC>`. `range`/prefix scans are gated to ordered codecs **at compile time**,
+  and a reopen with a mismatched codec fails loudly. Values use bincode; `KeyCodec` /
+  `ValueCodec` are public.
+- **Safe Rust surface** — enforced with `#![forbid(unsafe_code)]`; rocksmap's own crate contains
+  no `unsafe` (the underlying `rocksdb` bindings are FFI and are not counted here).
 
 ## In progress / planned
 
-- **Selectable key codec.** Keys use the order-preserving codec; an opt-out (e.g. for
-  unordered/bincode keys) is planned.
+- **Value-codec selection, durability/crash-consistency testing, and API stabilization** toward
+  a 1.0 release. `Error` is already `#[non_exhaustive]`.
 
 ## Installation
 

@@ -307,6 +307,8 @@ impl OrderedKey for OrderedF32 {
 pub struct OrderedCodec<T>(PhantomData<T>);
 
 impl<K: OrderedKey> KeyCodec<K> for OrderedCodec<K> {
+    const ID: u8 = 1;
+
     fn encode(key: &K) -> Result<Vec<u8>> {
         let mut out = Vec::new();
         key.encode_into(&mut out);

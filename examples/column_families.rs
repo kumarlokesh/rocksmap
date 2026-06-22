@@ -36,8 +36,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // The same key (1) lives independently in each column family.
-    users.put(&1, &alice)?;
-    admins.put(&1, &root)?;
+    users.put(1, &alice)?;
+    admins.put(1, &root)?;
 
     println!("users/1  = {:?}", users.get(&1)?);
     println!("admins/1 = {:?}", admins.get(&1)?);

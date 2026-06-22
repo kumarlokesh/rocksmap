@@ -63,7 +63,7 @@ fn import_from_json(
                         let cf_ref = db
                             .column_family(cf_name)
                             .context("Failed to get column family")?;
-                        cf_ref.put(&key.to_string(), &value_str)
+                        cf_ref.put(key.to_string(), &value_str)
                     }
                     None => db.put(key.clone(), &value_str),
                 };
@@ -97,7 +97,7 @@ fn import_from_json(
                             let cf_ref = db
                                 .column_family(cf_name)
                                 .context("Failed to get column family")?;
-                            cf_ref.put(&key.to_string(), &value)
+                            cf_ref.put(key.to_string(), &value)
                         }
                         None => db.put(key.to_string(), &value),
                     };
@@ -210,7 +210,7 @@ fn import_from_csv(
                         let cf_ref = db
                             .column_family(cf_name)
                             .context("Failed to get column family")?;
-                        cf_ref.put(&key.to_string(), &value.to_string())
+                        cf_ref.put(key.to_string(), &value.to_string())
                     }
                     None => db.put(key.to_string(), &value.to_string()),
                 };

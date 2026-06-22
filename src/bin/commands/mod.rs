@@ -32,7 +32,7 @@ pub fn put_command(
                 .column_family(cf_name)
                 .context("Failed to get column family")?;
             cf_ref
-                .put(&key.to_string(), &value.to_string())
+                .put(key.to_string(), &value.to_string())
                 .context("Failed to put value")?;
         }
         None => {

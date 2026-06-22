@@ -1,12 +1,15 @@
 use crate::codec::{BincodeCodec, KeyCodec, ValueCodec};
 use crate::error::{Error, Result};
-use crate::ordered::{OrderedCodec, OrderedKey};
+use crate::ordered::OrderedCodec;
 use rocksdb::{WriteBatch, WriteOptions, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 
-/// A batch of write operations that can be committed atomically
-pub struct RocksMapBatch<'a, K, V, KC = OrderedCodec<K>, VC = BincodeCodec<V>>
+/// A batch of write operations that can be committed atomically.
+///
+/// `KC` is the key codec (matching the [`RocksMap`](crate::RocksMap) it came from); values use
+/// bincode.
+pub struct RocksMapBatch<'a, K, V, KC = OrderedCodec<K>>
 where
     K: Serialize + DeserializeOwned,
     V: Serialize + DeserializeOwned,
@@ -17,13 +20,13 @@ where
     _key_marker: PhantomData<K>,
     _value_marker: PhantomData<V>,
     _key_codec: PhantomData<KC>,
-    _value_codec: PhantomData<VC>,
 }
 
-impl<'a, K, V> RocksMapBatch<'a, K, V, OrderedCodec<K>, BincodeCodec<V>>
+impl<'a, K, V, KC> RocksMapBatch<'a, K, V, KC>
 where
-    K: Serialize + DeserializeOwned + Clone + OrderedKey,
+    K: Serialize + DeserializeOwned + Clone,
     V: Serialize + DeserializeOwned + Clone,
+    KC: KeyCodec<K>,
 {
     /// Create a new batch operation instance for a RocksDB instance
     pub fn new(db: &'a DB, cf_name: Option<String>) -> Self {
@@ -34,13 +37,12 @@ where
             _key_marker: PhantomData,
             _value_marker: PhantomData,
             _key_codec: PhantomData,
-            _value_codec: PhantomData,
         }
     }
 
     /// Add a put operation to the batch
     pub fn put(&mut self, key: &K, value: &V) -> Result<&mut Self> {
-        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = KC::encode(key)?;
         let value_bytes = <BincodeCodec<V> as ValueCodec<V>>::encode(value)?;
 
         match &self.cf_name {
@@ -59,7 +61,7 @@ where
 
     /// Add a delete operation to the batch
     pub fn delete(&mut self, key: &K) -> Result<&mut Self> {
-        let key_bytes = <OrderedCodec<K> as KeyCodec<K>>::encode(key)?;
+        let key_bytes = KC::encode(key)?;
 
         match &self.cf_name {
             Some(cf_name) => {

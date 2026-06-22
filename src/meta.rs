@@ -17,6 +17,7 @@ pub const META_CF: &str = "__rocksmap_meta";
 const SCHEMA_KEY: &[u8] = b"schema";
 const INDEXES_KEY: &[u8] = b"indexes";
 const REBUILD_KEY: &[u8] = b"rebuilding";
+const KEY_CODEC_KEY: &[u8] = b"key_codec";
 const FORMAT_VERSION: u16 = 1;
 
 /// How a database's values are laid out on disk.
@@ -162,6 +163,19 @@ pub fn verify_or_write_indexes<S: KvStore>(store: &S, sorted_names: &[String]) -
             )))
         }
         None => store.put_raw(cf, INDEXES_KEY, &want),
+    }
+}
+
+/// Verify the stored key-codec id matches `id`, writing it if the database is fresh.
+pub fn verify_or_write_key_codec<S: KvStore>(store: &S, id: u8) -> Result<()> {
+    let cf = meta_cf(store)?;
+    match store.get_raw(cf, KEY_CODEC_KEY)? {
+        Some(have) if have.first() == Some(&id) => Ok(()),
+        Some(have) => Err(Error::FormatMismatch(format!(
+            "database was created with key codec id {:?} but opened with id {id}",
+            have.first()
+        ))),
+        None => store.put_raw(cf, KEY_CODEC_KEY, &[id]),
     }
 }
 

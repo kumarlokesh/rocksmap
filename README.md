@@ -107,31 +107,32 @@ Runnable, compiled examples live in [examples/](examples/). Run any with
 | [`range_and_prefix`](examples/range_and_prefix.rs) | `range`/`range_rev` and `scan_prefix`/`scan_prefix_fields` |
 | [`ttl`](examples/ttl.rs) | per-key expiry with `TtlRocksMap` and an injectable clock |
 | [`secondary_indexes`](examples/secondary_indexes.rs) | atomic indexes, unique constraints, and consistent updates with `IndexedRocksMap` |
-| [`cli_tool_demo`](examples/cli_tool_demo.rs) | driving the `rocksmap-cli` binary |
 
 ## CLI
 
-rocksmap ships a command-line tool, `rocksmap-cli`, as a binary target of this crate (it is
-not a separate crate). It operates on a database of UTF-8 string keys and string values. It is
-under active development.
+`rocksmap-cli` is a **separate crate** ([rocksmap-cli/](rocksmap-cli/)) — an operational inspector
+and operator for rocksmap databases.
 
-Build and run it from source:
+It is **safe by default**: it reads and inspects any rocksmap database (plain / TTL / indexed), but
+only *mutates* plain databases — a raw write into a TTL or indexed database would bypass
+envelope/index maintenance and corrupt invariants, so those are refused.
 
 ```bash
-cargo build --release --bin rocksmap-cli
+# From source (workspace):  cargo run -p rocksmap-cli -- --db ./app.db <command>
+# Once published:           cargo install rocksmap-cli
 
-./target/release/rocksmap-cli put mykey "hello world"
-./target/release/rocksmap-cli get mykey
-./target/release/rocksmap-cli list
-./target/release/rocksmap-cli delete mykey
-
-# Additional command groups
-./target/release/rocksmap-cli admin   --help   # stats, compact, backup, column families
-./target/release/rocksmap-cli import  --help   # json / csv import
-./target/release/rocksmap-cli export  --help   # json / csv export
-./target/release/rocksmap-cli diag    --help   # analysis, integrity checks, benchmarking
-./target/release/rocksmap-cli shell             # interactive shell
+rocksmap-cli --db ./app.db info                 # what is this database? (kind, key codec, indexes)
+rocksmap-cli --db ./app.db put mykey "hello"    # plain databases only
+rocksmap-cli --db ./app.db get mykey
+rocksmap-cli --db ./app.db list --limit 20
+rocksmap-cli --db ./app.db scan a m             # inclusive key range
+rocksmap-cli --db ./app.db export json dump.json
+rocksmap-cli --db ./app.db import json dump.json
+rocksmap-cli --db ./app.db admin stats          # also: compact, backup, list-cf
 ```
+
+Keys are UTF-8 strings by default; `--key-type u64|i64` decodes ordered scalar keys. Values are
+shown as text when they decode and as hex otherwise (they are opaque without the value type).
 
 ## Benchmarks
 

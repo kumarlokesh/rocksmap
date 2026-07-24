@@ -13,27 +13,19 @@ keywords = ["database", "rocksdb", "key-value", "storage", "embedded"]
 categories = ["database", "api-bindings", "data-structures"]
 exclude = ["benches/", "examples/", ".github/"]
 
+[workspace]
+members = ["rocksmap-cli"]
+
 [dependencies]
 rocksdb = "0.21.0"
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3"
 thiserror = "1.0"
-# CLI dependencies
-clap = { version = "4.4", features = ["derive"] }
-serde_json = "1.0"
-csv = "1.3"
-anyhow = "1.0"
-rand = "0.8"
-tokio = { version = "1.0", features = ["full"], optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1"
-
-[[bin]]
-name = "rocksmap-cli"
-path = "src/bin/cli.rs"
 
 [[bench]]
 name = "basic_ops"
@@ -65,7 +57,3 @@ path = "benches/integration/write_heavy.rs"
 name = "mixed_workload"
 harness = false
 path = "benches/integration/mixed_workload.rs"
-
-[features]
-default = []
-async = ["tokio"]

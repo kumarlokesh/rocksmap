@@ -13,6 +13,7 @@ mod clock;
 mod codec;
 mod error;
 mod index;
+mod inspect;
 mod meta;
 mod ordered;
 mod rocks_map;
@@ -23,11 +24,13 @@ pub use crate::clock::{Clock, ManualClock, SystemClock};
 pub use crate::codec::{BincodeCodec, KeyCodec, ValueCodec};
 pub use crate::error::{Error, Result};
 pub use crate::index::{Index, IndexedRocksMap, IndexedRocksMapBuilder};
+pub use crate::inspect::{inspect, DbInfo};
+pub use crate::meta::MapKind;
 pub use crate::ordered::{
     OrderedCodec, OrderedF32, OrderedF64, OrderedKey, OrderedKeyCodec, PrefixKey,
 };
 pub use crate::rocks_map::{RocksMap, RocksMapIterator};
-pub use crate::ttl::{TtlIterator, TtlRocksMap};
+pub use crate::ttl::{strip_ttl_envelope, TtlIterator, TtlRocksMap};
 
 /// Re-export important RocksDB types and options for configuration
 pub mod rocks {

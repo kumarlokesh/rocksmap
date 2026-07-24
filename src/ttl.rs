@@ -66,6 +66,19 @@ fn is_expired(expire_at: Option<u64>, now: u64) -> bool {
     matches!(expire_at, Some(deadline) if deadline <= now)
 }
 
+/// Decode a TTL-map value envelope for tooling that reads TTL databases directly (e.g. the CLI).
+///
+/// Returns `Ok(None)` if the entry is expired at `now_unix_millis`, `Ok(Some(payload))` with the
+/// wrapped value bytes if still live, or an error if `value` is not a valid envelope.
+pub fn strip_ttl_envelope(value: &[u8], now_unix_millis: u64) -> Result<Option<Vec<u8>>> {
+    let (expire_at, payload) = decode_envelope(value)?;
+    if is_expired(expire_at, now_unix_millis) {
+        Ok(None)
+    } else {
+        Ok(Some(payload.to_vec()))
+    }
+}
+
 /// A typed map whose entries can carry per-key time-to-live.
 ///
 /// Stored on the default column family. Distinct from [`RocksMap`](crate::RocksMap): opening

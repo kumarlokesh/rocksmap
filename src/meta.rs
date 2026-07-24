@@ -43,6 +43,28 @@ impl MapKind {
     fn label(self) -> &'static str {
         label_of(self.tag())
     }
+
+    /// Human-readable name of this kind (`"plain"` / `"ttl"` / `"indexed"`).
+    pub fn as_str(self) -> &'static str {
+        self.label()
+    }
+
+    fn from_tag(tag: u8) -> Result<Self> {
+        match tag {
+            0 => Ok(MapKind::Plain),
+            1 => Ok(MapKind::Ttl),
+            2 => Ok(MapKind::Indexed),
+            other => Err(Error::FormatMismatch(format!(
+                "unknown map kind tag {other}"
+            ))),
+        }
+    }
+}
+
+impl std::fmt::Display for MapKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 fn label_of(tag: u8) -> &'static str {
@@ -163,6 +185,33 @@ pub fn verify_or_write_indexes<S: KvStore>(store: &S, sorted_names: &[String]) -
             )))
         }
         None => store.put_raw(cf, INDEXES_KEY, &want),
+    }
+}
+
+/// Read the recorded map kind (read-only; `None` if the metadata has never been written).
+pub fn read_kind<S: KvStore>(store: &S) -> Result<Option<MapKind>> {
+    let cf = meta_cf(store)?;
+    match store.get_raw(cf, SCHEMA_KEY)? {
+        Some(bytes) if bytes.len() >= 3 => Ok(Some(MapKind::from_tag(bytes[2])?)),
+        Some(_) => Err(Error::FormatMismatch("corrupt metadata record".to_string())),
+        None => Ok(None),
+    }
+}
+
+/// Read the recorded key-codec id (read-only; `None` if never written).
+pub fn read_key_codec<S: KvStore>(store: &S) -> Result<Option<u8>> {
+    let cf = meta_cf(store)?;
+    Ok(store
+        .get_raw(cf, KEY_CODEC_KEY)?
+        .and_then(|b| b.first().copied()))
+}
+
+/// Read the declared index names (read-only; empty if none).
+pub fn read_indexes<S: KvStore>(store: &S) -> Result<Vec<String>> {
+    let cf = meta_cf(store)?;
+    match store.get_raw(cf, INDEXES_KEY)? {
+        Some(bytes) => Ok(bincode::deserialize(&bytes).unwrap_or_default()),
+        None => Ok(Vec::new()),
     }
 }
 

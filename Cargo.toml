@@ -2,7 +2,7 @@
 name = "rocksmap"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.85"
 authors = ["Lokesh"]
 description = "A high-level, type-safe abstraction over RocksDB with zero unsafe code and ergonomic map-like APIs"
 license = "MIT"

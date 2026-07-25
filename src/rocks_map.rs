@@ -168,6 +168,15 @@ where
         len_estimate_impl(&self.db, self.cf_name.as_deref())
     }
 
+    /// Flush and fsync the write-ahead log, making all prior writes durable against OS/power loss.
+    ///
+    /// By default a write that returns `Ok` survives a *process* crash but may be lost on an OS or
+    /// power crash until the WAL is synced. Call this at a checkpoint where you need power-loss
+    /// durability; it costs one fsync.
+    pub fn sync_wal(&self) -> Result<()> {
+        self.db.flush_wal(true).map_err(Error::from)
+    }
+
     /// Create a batch operation instance for this database
     pub fn batch(&self) -> crate::batch::RocksMapBatch<'_, K, V, KC> {
         crate::batch::RocksMapBatch::new(&self.db, self.cf_name.clone())

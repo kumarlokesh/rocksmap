@@ -270,6 +270,12 @@ where
         self.db.compact_range::<&[u8], &[u8]>(None, None);
     }
 
+    /// Flush and fsync the write-ahead log, making prior writes durable against OS/power loss.
+    /// See [`RocksMap::sync_wal`](crate::RocksMap::sync_wal) for the durability model.
+    pub fn sync_wal(&self) -> Result<()> {
+        self.db.flush_wal(true).map_err(Error::from)
+    }
+
     /// Access the underlying RocksDB handle.
     pub fn db(&self) -> &DB {
         &self.db

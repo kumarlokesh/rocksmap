@@ -2,6 +2,7 @@
 name = "rocksmap"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.74"
 authors = ["Lokesh"]
 description = "A high-level, type-safe abstraction over RocksDB with zero unsafe code and ergonomic map-like APIs"
 license = "MIT"
@@ -14,7 +15,7 @@ categories = ["database", "api-bindings", "data-structures"]
 exclude = ["benches/", "examples/", ".github/"]
 
 [workspace]
-members = ["rocksmap-cli"]
+members = ["rocksmap-cli", "durability-tests"]
 
 [dependencies]
 rocksdb = "0.21.0"

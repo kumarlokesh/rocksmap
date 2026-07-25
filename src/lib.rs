@@ -5,8 +5,20 @@
 //!
 //! rocksmap's own crate adds no `unsafe` code (the underlying `rocksdb` bindings are FFI);
 //! this is enforced by `#![forbid(unsafe_code)]`.
+//!
+//! # Durability
+//!
+//! A write that returns `Ok` is recorded in RocksDB's write-ahead log and **survives a process
+//! crash**. It may be lost on an **OS crash or power loss** if the WAL has not yet been fsync'd —
+//! the default, matching RocksDB and every embedded-store peer. For power-loss durability, call
+//! [`RocksMap::sync_wal`] (or [`TtlRocksMap::sync_wal`]) at a checkpoint; it costs one fsync.
+//!
+//! **Atomicity holds regardless of durability mode:** a [`RocksMapBatch`] and every
+//! [`IndexedRocksMap`] operation is all-or-nothing — a partial batch, or a data row without its
+//! index entries, never becomes visible, even across a crash.
 
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
 
 mod batch;
 mod clock;
